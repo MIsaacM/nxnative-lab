@@ -6,7 +6,15 @@ Baseline: `bench/results/2026-10-28-hades-v0-baseline.log` (~15 min windowed, pl
 54,901 presents over 54,947 display ticks (60 fps), 47 empty ticks, 40 merged frames, present GPU p50 0.210 ms,
 0 audio underruns, 1,344 pipelines, 960 MB Vulkan buffer memory. Image, audio, pacing and a DualShock 4 all fine.
 
-### Upstream candidates (not yet reported or fixed)
+### Upstream candidates (not yet reported or fixed; user chose not to report for now)
+
+Upstream state checked 2026-10-28: no issue or PR covers items 1–3 below. Related:
+- [#460](https://github.com/seedds/nxnative/pull/460) (open): Mac app `dataFolder`, `DM_LOG_DIR`, and `DM_SAVE`
+  relative to the folder holding the `.app` — the portable save we wanted. Its writability check creates a real file,
+  which passes on exFAT, so a save beside an app on exFAT would still mount read-only (item 1).
+- [#475](https://github.com/seedds/nxnative/pull/475) (open): `--work-dir` for the build folder (could keep builds on
+  APFS with games on exFAT). [#555](https://github.com/seedds/nxnative/pull/555) (open): AppleDouble files in c1 guard.
+  [#476](https://github.com/seedds/nxnative/pull/476) (merged): earlier exFAT fixes in the NSP script.
 
 1. **Save on exFAT is silently read-only.** `hle_fs.c` clones `$DM_SAVE` with `clonefile` (APFS only). With the NSP
    folder on exFAT the clone fails (`errno=45`, ENOTSUP), the save mounts read-only and every write is dropped:
