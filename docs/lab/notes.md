@@ -34,6 +34,16 @@ Upstream state checked 2026-10-28: no issue or PR covers items 1–3 below. Rela
    signing passes because they sit under Resources, but they are junk in the app. Fix ideas: build `<app>.partial` on an APFS temp dir and move it,
    or `dot_clean`/strip `._*` before signing, or refuse a non-APFS output up front with a clear message.
 
+### Streaming test (2026-10-29)
+
+- Sunshine on macOS drops gamepad input (official docs: "Gamepads do not work"); macOS has no virtual gamepad API.
+- Steam Remote Play to an iPhone (Steam Link) works with a DualShock 4 once the shortcut's Steam Input layout maps
+  the pad to nxnative's keyboard keys (the default "Gamepad" layout emulates a pad, which never reaches the game).
+  Needs Accessibility/Input Monitoring for Steam, `DM_LAUNCHER=0` in the player's `env.txt` (Steam Link cannot show the
+  launcher's settings window) and the game window key on the Mac (keys go to the frontmost app).
+- The Mac keyboard had no right stick (`push()` passed 0, 0). Branch `exp/kbd-right-stick`: keypad 8/4/2/6 drive it,
+  released with the other keys on focus loss and when the text box opens. Small, self-contained upstream candidate.
+
 ### Mac app on an external drive (exFAT)
 
 - Building/signing on APFS and then copying the app to exFAT (`ditto`) works: `codesign --verify --deep --strict`
