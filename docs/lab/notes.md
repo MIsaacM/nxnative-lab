@@ -51,3 +51,8 @@ Upstream state checked 2026-10-28: no issue or PR covers items 1–3 below. Rela
 - `[vk] dynamic state 3 not implemented` (VK_DYNAMIC_STATE_DEPTH_BIAS): the game imports no `vkCmdSetDepthBias`,
   so harmless here.
 - Profile was brought up on v589824 (1.0.38233); this run is v0 from a derived profile. Re-measure on the update.
+
+### Right stick (2026-10-30)
+
+- Steam Link on macOS has no virtual gamepad, so the right stick is mapped to keypad 8/4/2/6 (branch `exp/kbd-right-stick`).
+- Hades doesn't use right-stick movement: in-game it only uses the stick press (to reload one weapon), which already worked. So Hades can't confirm the keypad mapping; test it with a game that uses the right stick for the camera or aiming.
