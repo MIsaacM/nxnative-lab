@@ -61,3 +61,30 @@ Upstream state checked 2026-10-28: no issue or PR covers items 1–3 below. Rela
 - `[vk] dynamic state 3 not implemented` (VK_DYNAMIC_STATE_DEPTH_BIAS): the game imports no `vkCmdSetDepthBias`,
   so harmless here.
 - Profile was brought up on v589824 (1.0.38233); this run is v0 from a derived profile. Re-measure on the update.
+
+### Right stick (2026-10-30)
+
+- Steam Link on macOS has no virtual gamepad, so the right stick is mapped to keypad 8/4/2/6 (branch `exp/kbd-right-stick`).
+- Hades doesn't use right-stick movement: in-game it only uses the stick press (to reload one weapon), which already worked. So Hades can't confirm the keypad mapping; test it with a game that uses the right stick for the camera or aiming.
+
+### Shader split speed (hypothesis, 2026-10-30, not measured)
+
+The shader split (build step 5/8, `dm/gfx/tools/shader_split.py`) is the slowest first-build step for NVN games (Breath of the Wild: ~5 of ~10 min, per the build script's header). Vulkan games such as Hades skip it.
+
+Already in place:
+- Parallel scan: a process pool, with `J` set to `os.cpu_count()` by `build_ipa_from_nsp.py` (10 on the M1 Pro). More workers won't help.
+- Reuse: a repeat build with unchanged inputs skips the step (`split_shaders` fingerprint).
+
+Where the time goes: it walks, decompresses and scans **every** RomFS file, although only a fraction holds shaders.
+
+Idea: for a game with its own (non-provisional) profile, scan only the files named in column 5 (`source`) of the profile's `shader_map.tsv`, plus `main`, and skip textures, audio, video and models.
+- Self-checking: the split already requires its tables to be byte-identical to the profile's (`data_rows` comparison), so a missed file stops the build instead of silently dropping shaders.
+- Column 5 records only where a key *first* appears; duplicates elsewhere are dropped anyway, so the key set should be the same.
+- Edge cases:
+  - Unity serialized files borrow type trees from bundles that may hold no shaders, so their bundles must still be scanned.
+  - Tears of the Kingdom's zstd dictionaries (`zs_dicts`) come from separate files.
+  - Archive-range jobs (`kpka_jobs`, `smash_arc_jobs`, …) name archive entries, not just files.
+  - The "file(s) could not be read" count would stop covering skipped files.
+- Fallback: provisional profiles and any mismatch run the full scan.
+
+Next: implement on `exp/shader-split-sources` and measure first-build time with `scripts/bench.py` or plain wall-clock, before and after, on an NVN game dumped from the user's own console. Hades (Vulkan) can't measure it. Candidate for upstream if the gain is real.
