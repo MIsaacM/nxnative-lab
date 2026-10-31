@@ -78,3 +78,28 @@ Idea: for a game with its own (non-provisional) profile, scan only the files nam
 - Fallback: provisional profiles and any mismatch run the full scan.
 
 Next: implement on `exp/shader-split-sources` and measure first-build time with `scripts/bench.py` or plain wall-clock, before and after, on an NVN game dumped from the user's own console. Hades (Vulkan) can't measure it. Candidate for upstream if the gain is real.
+
+### Mac shaders and pipeline archive speed (hypotheses, 2026-10-31, not measured)
+
+On a large NVN game, the two slowest first-build steps come after the split:
+- step 6, Mac shaders (`dm/gfx/tools/dmsh_build.py`): tens of minutes;
+- step 8, pipeline archive (`dm/gfx/tools/pso_offline.py`, `--platform mac-app` only): about half as long again.
+
+**Step 6, Mac shaders: little room.**
+- Already parallel: the translator runs in `J` batches (`dmsh_build.py` `xl`, one `dmsh_xlate` process per chunk). Each shader's MSL compile runs in a pool of `J` threads (`os.cpu_count()` via the build script).
+- Already cached: the content-addressed cache (`DMSH_CAS`) and the libraries of older chain versions (prefill) make a rebuild of the same game near-instant. A first build of a game has 0 hits by definition.
+- Per-shader process overhead is not the cost: `xcrun -f metal` takes about 6 ms per call on the M1 Pro. The time is Apple's Metal front end, about 1 s of CPU per shader at `-O1`.
+- Possible small win: one `metal` call straight to a `.metallib` instead of `metal -c` + `metallib` (`mac_compile`), saving one process per shader. It changes `MAC_RECORD`, which invalidates the compile cache once. Probably a few percent; only worth it with numbers.
+- Big win only by design change: build only the shaders a game actually uses, lazily on the Mac. Not possible on iOS (no JIT), so not an upstream direction.
+
+**Step 8, pipeline archive: possibly a large win.**
+- `pso_offline.py` runs **one** `metal-tt` process for all bases (`cmd = [... 'metal-tt', '-arch', arch, ...]`).
+- If `metal-tt` is single-threaded, splitting the bases script into `J` parts and running them in parallel could cut this step several-fold.
+  - Cost: the host would load several `.mtl4a` archives instead of one (`DM_PSO_BUNDLE`), or the parts would need merging. `metal-tt -help` lists no merge option.
+  - First check: Activity Monitor during step 8. If `metal-tt` sits near 100% CPU, it uses one core and this is worth doing. If it sits near 800-1000%, it's already parallel: drop the idea.
+- `metal-tt -enable-disk-cache` (caches intermediate products) isn't used anywhere in the repo. It may speed up a rebuild after small changes; untested.
+- Existing escape hatch: `--gpu none` skips the step, and the app builds its pipeline bases on first start (stutter instead of build time).
+
+**Upstream since (2026-10-31 sync):** `0b3fa7e7` parallelizes the rewriter scans (step 3); `89074294` compiles the shared host shaders during builds; `8b06fab7` removes older chain versions' libraries after a build (disk, not time). None touches steps 6 or 8.
+
+Next: on an NVN game dumped from the user's own console, (1) watch `metal-tt`'s CPU use in step 8; (2) if single-threaded, prototype the split on `exp/pso-parallel`, then time the full build before and after.
